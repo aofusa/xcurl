@@ -16,6 +16,9 @@ struct Args {
     #[arg(short, long, default_value_t = 1, help = "curlを呼び出す回数を指定。")]
     repeat: usize,
 
+    #[arg(short, long, help = "繰り返しを行う時間を秒単位で指定します。指定された時間内で可能な限り繰り返し実行します。このオプションを使用するとき--repeatは無視されます")]
+    time: Option<usize>,
+
     #[arg(short, long, default_value_t = 0, help = "各実行間の待機時間をミリ秒単位で指定。デフォルトは待機なし。")]
     wait: u64,
 
@@ -162,7 +165,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     for _parallels in 0..parallel {
         let curl_args = curl_args.clone();
         let tx = tx.clone();
-        handle.push(
+        handle.push(if args.time.is_some() {
+            let now = Instant::now();
+            let time = args.time.unwrap();
+            tokio::spawn(async move {
+                while now.elapsed() < Duration::from_secs(time.try_into().unwrap()) {
+                    let response = call(&curl_args).await;
+                    if let Err(_) = tx.send(response).await { warn!("receiver dropped") }
+                    sleep(Duration::from_millis(args.wait)).await;
+                }
+            })
+        } else {
             tokio::spawn(async move {
                 for _repeat in 0..args.repeat {
                     let response = call(&curl_args).await;
@@ -170,14 +183,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     sleep(Duration::from_millis(args.wait)).await;
                 }
             })
-        );
+        });
     }
 
     let mut response = Vec::new();
-    for index in 1..parallel*args.repeat+1 {
-        if let Some(msg) = rx.recv().await {
-            response.push(msg);
-            eprint!("[{}/{}] running...\r", index, parallel*args.repeat);
+    if args.time.is_some() {
+        let now = Instant::now();
+        if let Some(time) = args.time {
+            let mut count = 0;
+            while now.elapsed() < Duration::from_secs(time.try_into().unwrap()) {
+                if let Some(msg) = rx.recv().await {
+                    response.push(msg);
+                    count += 1;
+                    eprint!("elapsed: {:?}, count: {}, running...\r", now.elapsed(), count);
+                }
+            }
+        }
+    } else {
+        for index in 1..parallel*args.repeat+1 {
+            if let Some(msg) = rx.recv().await {
+                response.push(msg);
+                eprint!("[{}/{}] running...\r", index, parallel*args.repeat);
+            }
         }
     }
     debug!("{:?}", response);
