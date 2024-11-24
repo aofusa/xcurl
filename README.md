@@ -42,7 +42,7 @@ cargo run -- --time 3 --wait 0 --parallel 3 -- localhost
 
 # 2回実行を3並列で localhost に実行
 # POSTでデータも送付する
-cargo run -- --repeat 2 --wait 10 --parallel 3 -- -X -d 'post data' localhost
+cargo run -- --repeat 2 --wait 10 --parallel 3 -- -X POST -d 'post data' localhost
 
 # RUST_LOGを設定してデバッグログ出力が可能
 RUST_LOG=debug cargo run -- -- localhost
