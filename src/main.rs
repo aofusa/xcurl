@@ -22,7 +22,7 @@ struct Args {
     #[arg(short, long, default_value_t = 0, help = "各実行間の待機時間をミリ秒単位で指定。デフォルトは待機なし。")]
     wait: u64,
 
-    #[arg(short, long, default_value_t = 1, help = "並列で実行する数を指定。0を指定した場合repeatで指定した数を上限に可能な限り並列数を増やす。")]
+    #[arg(short, long, default_value_t = 1, help = "並列で実行する数を指定。")]
     parallel: usize,
 
     #[arg(last = true, help = "cURL引数")]
@@ -137,14 +137,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
     debug!("{:?}", args);
 
-    let parallel = {
-        if args.parallel > 0 {
-            args.parallel
-        } else {
-            args.repeat
-        }
-    };
-
     let mut curl_args = args.curl_args.clone();
     if !args.curl_args.contains(&String::from("-s")) {
         curl_args.push("-s".to_string());
@@ -162,7 +154,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let (tx, mut rx) = mpsc::channel(1024);
 
-    for _parallels in 0..parallel {
+    for _parallels in 0..args.parallel {
         let curl_args = curl_args.clone();
         let tx = tx.clone();
         handle.push(if args.time.is_some() {
@@ -200,10 +192,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     } else {
-        for index in 1..parallel*args.repeat+1 {
+        for index in 1..args.parallel*args.repeat+1 {
             if let Some(msg) = rx.recv().await {
                 response.push(msg);
-                eprint!("[{}/{}] running...\r", index, parallel*args.repeat);
+                eprint!("[{}/{}] running...\r", index, args.parallel*args.repeat);
             }
         }
     }
