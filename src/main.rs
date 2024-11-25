@@ -37,7 +37,7 @@ struct Response {
 }
 
 #[derive(Serialize, Debug)]
-struct Statistics {
+struct Metrics {
     mean_time: u32,
     max_time: u32,
     min_time: u32,
@@ -70,7 +70,7 @@ async fn call(args: &[String]) -> Response {
     }
 }
 
-fn statistics(response: &[Response]) -> Statistics {
+fn statistics(response: &[Response]) -> Metrics {
     let time = response
       .iter()
       .map(|x| x.time.subsec_millis());
@@ -118,13 +118,13 @@ fn statistics(response: &[Response]) -> Statistics {
       .filter(|exit_status| *exit_status != 0)
       .collect::<Vec<i32>>()
       .len();
-    
-    Statistics {
+
+    Metrics {
         mean_time,
         max_time,
         min_time,
         variance_time,
-        
+
         status_count,
         error_count,
     }
