@@ -205,6 +205,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     debug!("{:?}", metrics);
     println!("{}", serde_json::to_string(&metrics)?);
 
-    for x in handle { x.await? }
+    for x in handle { x.abort() }
     Ok(())
 }
