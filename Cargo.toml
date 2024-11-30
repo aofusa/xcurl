@@ -13,3 +13,4 @@ serde_json = "1.0.133"
 serde_derive = "1.0.215"
 reqwest = { version = "0.12.9", default-features = false, features = ["charset", "http2", "macos-system-configuration", "json", "rustls-tls"] }
 anyhow = "1.0.93"
+quiche = "0.22.0"

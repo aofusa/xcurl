@@ -1,5 +1,5 @@
 use clap::{Parser, ValueEnum};
-use reqwest::{Client, Error, Method, Request, Response, Url};
+use reqwest::{Client, Error, Method, Request, Response, Url, Version};
 
 #[derive(Parser, Debug)]
 pub struct Args {
@@ -20,6 +20,21 @@ pub struct Args {
 
     #[arg(short = 'k', long = "insecure", help = "Allow insecure server connections")]
     r#insecure: bool,
+
+    #[arg(long = "http0.9", default_value_t = false, help = "Use HTTP v3")]
+    r#http09: bool,
+
+    #[arg(short = '0', long = "http1.0", default_value_t = false, help = "Use HTTP v3")]
+    r#http10: bool,
+
+    #[arg(long = "http1.1", default_value_t = false, help = "Use HTTP v3")]
+    r#http11: bool,
+
+    #[arg(long = "http2", default_value_t = false, help = "Use HTTP v3")]
+    r#http2: bool,
+
+    #[arg(long = "http3", default_value_t = false, help = "Use HTTP v3")]
+    r#http3: bool,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]
@@ -81,6 +96,12 @@ impl WebClient {
             let mut r = client.request(method, url);
 
             if let Some(data) = arg.data { r = r.body(data) }
+
+            if arg.http09 { r = r.version(Version::HTTP_09) }
+            if arg.http10 { r = r.version(Version::HTTP_10) }
+            if arg.http11 { r = r.version(Version::HTTP_11) }
+            if arg.http2 { r = r.version(Version::HTTP_2) }
+            if arg.http3 { r = r.version(Version::HTTP_3) }
 
             for row in arg.header {
                 let h = row
