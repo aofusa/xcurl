@@ -17,6 +17,9 @@ struct Args {
 
     #[arg(short = 'H', long = "header", help = "Pass custom header(s) to server")]
     r#header: Vec<String>,
+
+    #[arg(short = 'k', long = "insecure", help = "Allow insecure server connections")]
+    r#insecure: bool,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]
@@ -57,6 +60,8 @@ impl WebClient {
             let mut c = Client::builder();
 
             if let Some(useragent) = arg.user_agent { c = c.user_agent(useragent) }
+
+            if arg.insecure { c = c.danger_accept_invalid_certs(true) }
 
             c.build()?
         };
