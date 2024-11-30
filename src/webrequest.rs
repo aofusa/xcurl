@@ -2,7 +2,7 @@ use clap::{Parser, ValueEnum};
 use reqwest::{Client, Error, Method, Request, Response, Url};
 
 #[derive(Parser, Debug)]
-struct Args {
+pub struct Args {
     #[arg(value_name = "url", required = true)]
     r#url: String,
 

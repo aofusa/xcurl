@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::ops::{Add, Div};
 use std::process::Stdio;
 use std::time::Duration;
-use clap::Parser;
+use clap::{Parser, CommandFactory};
 use tokio::process::Command;
 use tokio::sync::mpsc;
 use tokio::time::{Instant, sleep};
@@ -14,10 +14,14 @@ use serde_derive::Serialize;
 use crate::webrequest::WebClient;
 
 #[derive(Parser, Debug)]
+#[clap(disable_help_flag = true)]
 #[command(version, about, long_about = None)]
 struct Args {
     #[arg(short, long, default_value_t = 1, help = "curlを呼び出す回数を指定。")]
     repeat: usize,
+
+    #[arg(short, long, default_value_t = false, help = "Print help")]
+    help: bool,
 
     #[arg(short, long, help = "繰り返しを行う時間を秒単位で指定します。指定された時間内で可能な限り繰り返し実行します。このオプションを使用するとき--repeatは無視されます")]
     time: Option<usize>,
@@ -28,7 +32,7 @@ struct Args {
     #[arg(short, long, default_value_t = 1, help = "並列で実行する数を指定。0の場合可能な限り並列数を増やす。")]
     parallel: usize,
 
-    #[arg(long = "use-builtin", default_value_t = false, help = "curlコマンドのかわりに組み込みのWebリクエスト機能を使用します。いくつかのcurlオプションは使えません。")]
+    #[arg(long = "use-builtin", default_value_t = false, help = "curlのかわりに組込の機能を使用します。いくつかのcurlオプションは使えません。詳細は--use-builtinと--helpのオプションでご確認ください。")]
     builtin: bool,
 
     #[arg(last = true, help = "cURL引数")]
@@ -205,6 +209,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let args = Args::parse();
     debug!("{:?}", args);
+
+    if args.help {
+        if args.builtin {
+            webrequest::Args::command().print_help()?;
+        } else {
+            Args::command().print_help()?;
+        }
+        return Ok(());
+    }
 
     let mut curl_args = args.curl_args.clone();
     if args.builtin {
