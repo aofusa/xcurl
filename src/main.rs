@@ -11,6 +11,7 @@ use tokio::sync::mpsc;
 use tokio::time::{Instant, sleep};
 use log::{debug, warn};
 use serde_derive::Serialize;
+use crate::webrequest::WebClient;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -34,11 +35,13 @@ struct Args {
     curl_args: Vec<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 struct Response {
     time: Duration,
     status_code: String,
     exit_status: i32,
+    error: String,
 }
 
 #[derive(Serialize, Debug)]
@@ -66,27 +69,10 @@ async fn call_curl(args: &[String]) -> Response {
       .await
       .unwrap();
 
-    let delta = now.elapsed();
-
-    debug!("{:?}", output);
-
-    Response {
-        time: delta,
-        status_code: String::from_utf8_lossy(&output.stdout).parse().unwrap(),
-        exit_status: output.status.code().unwrap(),
-    }
-}
-
-async fn call_builtin(args: &[String]) -> Response {
-    debug!("{:?}", args);
-
-    let now = Instant::now();
-
-    let output = {
-        match webrequest::Args::try_parse_from(args) {
-            Ok(x) => format!("{:?}", x),
-            Err(e) => format!("{:?}", e),
-        }
+    let status_code = if output.status.code().unwrap() != 0 {
+        "client error".to_string()
+    } else {
+        String::from_utf8_lossy(&output.stdout).parse().unwrap()
     };
 
     let delta = now.elapsed();
@@ -95,8 +81,50 @@ async fn call_builtin(args: &[String]) -> Response {
 
     Response {
         time: delta,
-        status_code: output,
-        exit_status: 0,
+        status_code,
+        exit_status: output.status.code().unwrap(),
+        error: String::from_utf8_lossy(&output.stderr).parse().unwrap(),
+    }
+}
+
+async fn call_builtin(args: &[String]) -> Response {
+    debug!("{:?}", args);
+
+    let now = Instant::now();
+
+    let mut exit_status = 0;
+    let mut status_code = "client error".to_string();
+    let mut error_msg = "".to_string();
+    let mut output = None;
+
+    let client = WebClient::build(args);
+    if client.is_ok() {
+        let response = client.unwrap().send().await;
+        if response.is_ok() {
+            output = Some(response.unwrap());
+            if let Some(ref output) = output {
+                status_code = output.status().to_string();
+            }
+        } else {
+            exit_status = 1;
+            error_msg = response.unwrap_err().to_string();
+        }
+    } else {
+        exit_status = 1;
+        error_msg = client.unwrap_err().to_string();
+    }
+
+    let delta = now.elapsed();
+
+    if let Some(output) = output {
+        debug!("{:?}", output);
+    }
+
+    Response {
+        time: delta,
+        status_code,
+        exit_status,
+        error: error_msg,
     }
 }
 
