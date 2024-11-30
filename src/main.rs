@@ -42,6 +42,8 @@ struct Metrics {
     max_time: u32,
     min_time: u32,
     variance_time: u32,
+    quartile_25: u32,
+    quartile_75: u32,
     
     status_count: HashMap<String, usize>,
     error_count: usize,
@@ -72,7 +74,7 @@ async fn call(args: &[String]) -> Response {
 
 fn statistics(response: &[Response]) -> Metrics {
     let time = response
-      .iter()
+      .into_iter()
       .map(|x| x.time.subsec_millis());
 
     let mean_time = time
@@ -100,6 +102,15 @@ fn statistics(response: &[Response]) -> Metrics {
       .reduce(|acc, x| acc + x)
       .unwrap() / response.len() as u32;
 
+    let mut quartile = time
+      .clone()
+      .collect::<Vec<_>>();
+    quartile.sort();
+
+    let quartile_25 = quartile[response.len() * 1 / 4];
+
+    let quartile_75 = quartile[response.len() * 3 / 4];
+
     let status_count = response
       .iter()
       .map(|x| x.status_code.clone())
@@ -124,6 +135,8 @@ fn statistics(response: &[Response]) -> Metrics {
         max_time,
         min_time,
         variance_time,
+        quartile_25,
+        quartile_75,
 
         status_count,
         error_count,

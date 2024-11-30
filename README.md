@@ -50,7 +50,7 @@ RUST_LOG=debug cargo run -- -- localhost
 
 実行後は以下のような簡易統計情報が表示される。単位はミリ秒時間
 ```json
-{"mean_time":162,"max_time":166,"min_time":159,"variance_time":2,"status_count":{"200":3},"error_count":0}
+{"mean_time":65,"max_time":98,"min_time":19,"variance_time":11,"quartile_25":56,"quartile_75":75,"status_count":{"200":100},"error_count":0}
 ```
 
 Dockerを使い多重起動する例
