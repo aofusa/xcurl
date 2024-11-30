@@ -1,3 +1,5 @@
+mod webrequest;
+
 use std::cmp::{max, min};
 use std::collections::HashMap;
 use std::ops::{Add, Div};
@@ -25,6 +27,9 @@ struct Args {
     #[arg(short, long, default_value_t = 1, help = "並列で実行する数を指定。0の場合可能な限り並列数を増やす。")]
     parallel: usize,
 
+    #[arg(long = "use-builtin", default_value_t = false, help = "curlコマンドのかわりに組み込みのWebリクエスト機能を使用します。いくつかのcurlオプションは使えません。")]
+    builtin: bool,
+
     #[arg(last = true, help = "cURL引数")]
     curl_args: Vec<String>,
 }
@@ -49,7 +54,7 @@ struct Metrics {
     error_count: usize,
 }
 
-async fn call(args: &[String]) -> Response {
+async fn call_curl(args: &[String]) -> Response {
     debug!("{:?}", args);
 
     let now = Instant::now();
@@ -69,6 +74,29 @@ async fn call(args: &[String]) -> Response {
         time: delta,
         status_code: String::from_utf8_lossy(&output.stdout).parse().unwrap(),
         exit_status: output.status.code().unwrap(),
+    }
+}
+
+async fn call_builtin(args: &[String]) -> Response {
+    debug!("{:?}", args);
+
+    let now = Instant::now();
+
+    let output = {
+        match webrequest::Args::try_parse_from(args) {
+            Ok(x) => format!("{:?}", x),
+            Err(e) => format!("{:?}", e),
+        }
+    };
+
+    let delta = now.elapsed();
+
+    debug!("{:?}", output);
+
+    Response {
+        time: delta,
+        status_code: output,
+        exit_status: 0,
     }
 }
 
@@ -151,16 +179,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     debug!("{:?}", args);
 
     let mut curl_args = args.curl_args.clone();
-    if !args.curl_args.contains(&String::from("-s")) {
-        curl_args.push("-s".to_string());
-    }
-    if !args.curl_args.contains(&String::from("-o")) {
-        curl_args.push("-o".to_string());
-        curl_args.push("/dev/null".to_string());
-    }
-    if !args.curl_args.contains(&String::from("-w")) {
-        curl_args.push("-w".to_string());
-        curl_args.push("%{http_code}".to_string());
+    if args.builtin {
+        curl_args.insert(0, "curl".to_string());
+    } else {
+        if !args.curl_args.contains(&String::from("-s")) {
+            curl_args.push("-s".to_string());
+        }
+        if !args.curl_args.contains(&String::from("-o")) {
+            curl_args.push("-o".to_string());
+            curl_args.push("/dev/null".to_string());
+        }
+        if !args.curl_args.contains(&String::from("-w")) {
+            curl_args.push("-w".to_string());
+            curl_args.push("%{http_code}".to_string());
+        }
     }
 
     let mut handle = Vec::new();
@@ -175,18 +207,34 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let now = Instant::now();
                 let time = args.time.unwrap();
                 tokio::spawn(async move {
-                    while now.elapsed() < Duration::from_secs(time.try_into().unwrap()) {
-                        let response = call(&curl_args).await;
-                        if let Err(_) = tx.send(response).await { warn!("receiver dropped") }
-                        sleep(Duration::from_millis(args.wait)).await;
+                    if args.builtin {
+                        while now.elapsed() < Duration::from_secs(time.try_into().unwrap()) {
+                            let response = call_builtin(&curl_args).await;
+                            if let Err(_) = tx.send(response).await { warn!("receiver dropped") }
+                            sleep(Duration::from_millis(args.wait)).await;
+                        }
+                    } else {
+                        while now.elapsed() < Duration::from_secs(time.try_into().unwrap()) {
+                            let response = call_curl(&curl_args).await;
+                            if let Err(_) = tx.send(response).await { warn!("receiver dropped") }
+                            sleep(Duration::from_millis(args.wait)).await;
+                        }
                     }
                 })
             } else {
                 tokio::spawn(async move {
-                    for _repeat in 0..args.repeat {
-                        let response = call(&curl_args).await;
-                        if let Err(_) = tx.send(response).await { warn!("receiver dropped") }
-                        sleep(Duration::from_millis(args.wait)).await;
+                    if args.builtin {
+                        for _repeat in 0..args.repeat {
+                            let response = call_builtin(&curl_args).await;
+                            if let Err(_) = tx.send(response).await { warn!("receiver dropped") }
+                            sleep(Duration::from_millis(args.wait)).await;
+                        }
+                    } else {
+                        for _repeat in 0..args.repeat {
+                            let response = call_curl(&curl_args).await;
+                            if let Err(_) = tx.send(response).await { warn!("receiver dropped") }
+                            sleep(Duration::from_millis(args.wait)).await;
+                        }
                     }
                 })
             });
@@ -201,9 +249,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let curl_args = curl_args.clone();
                     let tx = tx.clone();
                     inner_handle.push(tokio::spawn(async move {
-                        let response = call(&curl_args).await;
-                        if let Err(_) = tx.send(response).await { warn!("receiver dropped") }
-                        sleep(Duration::from_millis(args.wait)).await;
+                        if args.builtin {
+                            let response = call_builtin(&curl_args).await;
+                            if let Err(_) = tx.send(response).await { warn!("receiver dropped") }
+                            sleep(Duration::from_millis(args.wait)).await;
+                        } else {
+                            let response = call_curl(&curl_args).await;
+                            if let Err(_) = tx.send(response).await { warn!("receiver dropped") }
+                            sleep(Duration::from_millis(args.wait)).await;
+                        }
                     }));
                 }
                 for x in inner_handle { x.abort() }
@@ -213,9 +267,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let curl_args = curl_args.clone();
                     let tx = tx.clone();
                     inner_handle.push(tokio::spawn(async move {
-                        let response = call(&curl_args).await;
-                        if let Err(_) = tx.send(response).await { warn!("receiver dropped") }
-                        sleep(Duration::from_millis(args.wait)).await;
+                        if args.builtin {
+                            let response = call_builtin(&curl_args).await;
+                            if let Err(_) = tx.send(response).await { warn!("receiver dropped") }
+                            sleep(Duration::from_millis(args.wait)).await;
+                        } else {
+                            let response = call_curl(&curl_args).await;
+                            if let Err(_) = tx.send(response).await { warn!("receiver dropped") }
+                            sleep(Duration::from_millis(args.wait)).await;
+                        }
                     }));
                 }
                 for x in inner_handle { x.await.unwrap() }
