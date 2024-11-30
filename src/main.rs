@@ -335,7 +335,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         for index in 1..(count+1) {
             if let Some(msg) = rx.recv().await {
                 response.push(msg);
-                eprint!("[{}/{}] running...\r", index, args.parallel*args.repeat);
+                eprint!("[{}/{}] running...\r", index, count);
             }
         }
     }
