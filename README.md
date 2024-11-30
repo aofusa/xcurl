@@ -63,3 +63,38 @@ for _i in $(seq 1 5); do
     docker run --rm --volume $(pwd)/target/i686-unknown-linux-musl/release:/app:ro -d alpine/curl sh -c "/app/xcurl --time 10 --parallel 100 -- localhost" &
 done
 ```
+
+
+各環境向けビルド手順
+-----
+
+以下のビルドツールを利用
+- linux・mac：zigbuild
+- windows：cargo-xwin
+- musl：musl-closs
+
+[cargo-zigbuild](https://github.com/rust-cross/cargo-zigbuild)  
+[cargo-xwin](https://github.com/rust-cross/cargo-xwin)  
+[rust-musl-cross](https://github.com/rust-cross/rust-musl-cross)
+
+
+参考
+
+Rustは2022年公開の1.64より最低要件を glibc >= 2.17, kernel >= 3.2 にしている
+[Rust Blog](https://blog.rust-lang.org/2022/08/01/Increasing-glibc-kernel-requirements.html)
+
+そのためglibc のバージョン 2.17 以前の環境で使う場合はmuslでstatic linkしたものを使用する
+
+
+### ビルドコマンド
+
+コマンドを実行する場合はdockerが必要
+
+```sh
+docker run --rm -it -v $(pwd):/io -w /io messense/cargo-zigbuild cargo zigbuild --release --target x86_64-unknown-linux-gnu.2.17
+docker run --rm -it -v $(pwd):/io -w /io messense/cargo-zigbuild cargo zigbuild --release --target aarch64-unknown-linux-gnu.2.17
+docker run --rm -it -v $(pwd):/io -w /io messense/cargo-zigbuild cargo zigbuild --release --target universal2-apple-darwin
+docker run --rm -it -v $(pwd):/io -w /io messense/cargo-xwin cargo xwin build --release --target x86_64-pc-windows-msvc
+docker run --rm -it -v $(pwd):/io -w /io messense/cargo-xwin cargo xwin build --release --target aarch64-pc-windows-msvc
+docker run --rm -it -v $(pwd):/home/rust/src messense/rust-musl-cross:i686-musl cargo build --release
+```
