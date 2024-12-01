@@ -1,4 +1,5 @@
-use clap::{Parser, ValueEnum};
+use clap::{Parser, ValueEnum, CommandFactory};
+use clap::error::ErrorKind;
 use reqwest::{Client, Error, Method, Request, Response, Url, Version};
 
 #[derive(Parser, Debug)]
@@ -35,6 +36,24 @@ pub struct Args {
 
     #[arg(long = "http3", default_value_t = false, help = "Use HTTP v3")]
     r#http3: bool,
+
+    #[arg(short = '1', long = "tlsv1", default_value_t = false, help = "Use TLSv1.0 or greater")]
+    r#tlsv1: bool,
+
+    #[arg(long = "tlsv1.0", default_value_t = false, help = "Use TLSv1.0 or greater")]
+    r#tlsv10: bool,
+
+    #[arg(long = "tlsv1.1", default_value_t = false, help = "Use TLSv1.1 or greater")]
+    r#tlsv11: bool,
+
+    #[arg(long = "tlsv1.2", default_value_t = false, help = "Use TLSv1.2 or greater")]
+    r#tlsv12: bool,
+
+    #[arg(long = "tlsv1.3", default_value_t = false, help = "Use TLSv1.3 or greater")]
+    r#tlsv13: bool,
+
+    #[arg(long = "tls-max", value_name = "VERSION", help = "Set maximum allowed TLS version")]
+    r#tls_max: Option<String>,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]
@@ -77,6 +96,23 @@ impl WebClient {
             if let Some(useragent) = arg.user_agent { c = c.user_agent(useragent) }
 
             if arg.insecure { c = c.danger_accept_invalid_certs(true) }
+
+            if arg.tlsv1 || arg.tlsv10 { c = c.min_tls_version(reqwest::tls::Version::TLS_1_0) }
+            if arg.tlsv11 { c = c.min_tls_version(reqwest::tls::Version::TLS_1_1) }
+            if arg.tlsv12 { c = c.min_tls_version(reqwest::tls::Version::TLS_1_2) }
+            if arg.tlsv13 { c = c.min_tls_version(reqwest::tls::Version::TLS_1_3) }
+            if let Some(tls_max) = arg.tls_max {
+                c = match tls_max.as_str() {
+                    "1.0" => Ok(c.max_tls_version(reqwest::tls::Version::TLS_1_0)),
+                    "1.1" => Ok(c.max_tls_version(reqwest::tls::Version::TLS_1_1)),
+                    "1.2" => Ok(c.max_tls_version(reqwest::tls::Version::TLS_1_2)),
+                    "1.3" => Ok(c.max_tls_version(reqwest::tls::Version::TLS_1_3)),
+                    _ => Err(Args::command().error(
+                        ErrorKind::InvalidValue,
+                        format!("error: invalid value \'{tls_max}\' for \'--tls-max <VERSION>\'\n possible values: 1.0, 1.1, 1.2, 1.3")
+                    )),
+                }?;
+            }
 
             c.build()?
         };
