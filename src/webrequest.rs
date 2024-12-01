@@ -97,6 +97,8 @@ impl WebClient {
 
             if arg.insecure { c = c.danger_accept_invalid_certs(true) }
 
+            if arg.http09 { c = c.http09_responses() }
+
             if arg.tlsv1 || arg.tlsv10 { c = c.min_tls_version(reqwest::tls::Version::TLS_1_0) }
             if arg.tlsv11 { c = c.min_tls_version(reqwest::tls::Version::TLS_1_1) }
             if arg.tlsv12 { c = c.min_tls_version(reqwest::tls::Version::TLS_1_2) }
@@ -133,7 +135,7 @@ impl WebClient {
 
             if let Some(data) = arg.data { r = r.body(data) }
 
-            if arg.http09 { r = r.version(Version::HTTP_09) }
+            // if arg.http09 { r = r.version(Version::HTTP_09) }
             if arg.http10 { r = r.version(Version::HTTP_10) }
             if arg.http11 { r = r.version(Version::HTTP_11) }
             if arg.http2 { r = r.version(Version::HTTP_2) }
