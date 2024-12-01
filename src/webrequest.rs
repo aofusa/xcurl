@@ -21,16 +21,16 @@ pub struct Args {
     #[arg(short = 'k', long = "insecure", help = "Allow insecure server connections")]
     r#insecure: bool,
 
-    #[arg(long = "http0.9", default_value_t = false, help = "Use HTTP v3")]
+    #[arg(long = "http0.9", default_value_t = false, help = "Allow HTTP 0.9 responses")]
     r#http09: bool,
 
-    #[arg(short = '0', long = "http1.0", default_value_t = false, help = "Use HTTP v3")]
+    #[arg(short = '0', long = "http1.0", default_value_t = false, help = "Use HTTP 1.0")]
     r#http10: bool,
 
-    #[arg(long = "http1.1", default_value_t = false, help = "Use HTTP v3")]
+    #[arg(long = "http1.1", default_value_t = false, help = "Use HTTP 1.1")]
     r#http11: bool,
 
-    #[arg(long = "http2", default_value_t = false, help = "Use HTTP v3")]
+    #[arg(long = "http2", default_value_t = false, help = "Use HTTP/2")]
     r#http2: bool,
 
     #[arg(long = "http3", default_value_t = false, help = "Use HTTP v3")]
