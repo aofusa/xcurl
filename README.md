@@ -97,5 +97,5 @@ docker run --rm -it -v $(pwd):/io -w /io messense/cargo-zigbuild cargo zigbuild 
 docker run --rm -it -v $(pwd):/io -w /io messense/cargo-zigbuild cargo zigbuild --release --target universal2-apple-darwin
 docker run --rm -it -v $(pwd):/io -w /io messense/cargo-xwin cargo xwin build --release --target x86_64-pc-windows-msvc
 docker run --rm -it -v $(pwd):/io -w /io messense/cargo-xwin cargo xwin build --release --target aarch64-pc-windows-msvc
-docker run --rm -it -v $(pwd):/home/rust/src messense/rust-musl-cross:i686-musl cargo build --release
+docker run --rm -it -v $(pwd):/io -w /io messense/rust-musl-cross:i686-musl cargo build --release
 ```
